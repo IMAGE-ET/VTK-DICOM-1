@@ -2,93 +2,7 @@
 #include "ui_filedialog.h"
 
 #include "qfiledialog.h"
-#include "itkImage.h"
-//#include "itkImageFileReader.h"
-#include <iostream>
-#include "itkSize.h"
-//#include "itkImageFileWriter.h"
-#include "itkGradientAnisotropicDiffusionImageFilter.h"
-//#include "itkGradientMagnitudeImageFilter.h"
-#include "itkGradientMagnitudeRecursiveGaussianImageFilter.h"
-#include "itkWatershedImageFilter.h"
-#include "itkScalarToRGBPixelFunctor.h"
-#include "itkUnaryFunctorImageFilter.h"
-
-
-//Reading DICOM using ITK
-#include "itkRescaleIntensityImageFilter.h"
-#include "itkGDCMImageIO.h"
-
-//Morphological Operations
-#include "itkBinaryBallStructuringElement.h"
-//#include <itkRegionalMaximaImageFilter.h>
-
-#include <itkInvertIntensityImageFilter.h>
-#include "itkGrayscaleErodeImageFilter.h"
-//#include "itkThresholdImageFilter.h"
-#include <itkSignedMaurerDistanceMapImageFilter.h>
-//#include "itkMinimaImpositionImageFilter.h"
-#include <itkBinaryThresholdImageFilter.h>
-
-#include <itkReconstructionByDilationImageFilter.h>
-#include <itkReconstructionByErosionImageFilter.h>
-#include <itkGrayscaleMorphologicalClosingImageFilter.h>
-
-#include <itkMorphologicalWatershedImageFilter.h>
-//#include "itkRegionalMinimaImageFilter.h"
-#include "itkConnectedComponentImageFilter.h"
-#include <itkGrayscaleDilateImageFilter.h>
-#include "itkLabelToRGBImageFilter.h"
-
-#include "itkScalarToRGBColormapImageFilter.h"
-#include "itkRegionOfInterestImageFilter.h"
-#include "itkFlipImageFilter.h"
-
-
-//vtk headers
-#include <vtkSmartPointer.h>
-#include <vtkImageViewer2.h>
-#include <vtkDICOMImageReader.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkRenderer.h>
-
-#include <itkImageToVTKImageFilter.h>
- 
-#include "vtkVersion.h"
-#include "vtkImageViewer.h"
-#include "vtkImageMapper3D.h"
-#include "vtkImageActor.h"
-#include "vtkInteractorStyleImage.h"
-
-#include <vtkActor.h>
-#include <vtkAssemblyNode.h>
-#include <vtkAssemblyPath.h>
-#include <vtkBorderRepresentation.h>
-#include <vtkCommand.h>
-#include <vtkBorderWidget.h>
 #include "vtkBorderCallback.h"
-#include <vtkCoordinate.h>
-#include <vtkPolyData.h>
-#include <vtkPropPicker.h>
-#include <vtkProperty2D.h>
-#include <vtkPointData.h>
-#include <vtkInteractorStyleTrackballCamera.h>
-#include <vtkCornerAnnotation.h>
-#include <vtkTextProperty.h>
-#include <vtkImageData.h>
-#include <vtkCell.h>
-#include <vtkImageChangeInformation.h>
-#include <vtkPNGReader.h>
-#include <vtkViewport.h>
-
-
-
-//#include <vtkImageFlip.h>
-//#include <itkVTKImageToImageFilter.h>
-//#include "QuickView.h"
-//#include <itkImageRegionConstIteratorWithIndex.h>
-
 
 
 FileDialog::FileDialog(QWidget *parent) :
@@ -110,14 +24,12 @@ void FileDialog::on_pushButton_clicked()
     s1 = QFileDialog::getOpenFileName(this,tr("Select your file"),"/home",tr("Images(*.png *.jpg *.xpm *.dcm)"));
     ui->lineEdit->setText(s1);
     const std::string ipfile = s1.toStdString();
-    const char* p = ipfile.c_str();
+    p = ipfile.c_str();
 
 
 //Read DICOM images using ITK
-	typedef itk::ImageFileReader< InputImageType > ReaderType;
-	ReaderType::Pointer itkreader = ReaderType::New();
+	itkreader = ReaderType::New();
 	itkreader->SetFileName( ipfile );
-	typedef itk::GDCMImageIO ImageIOType;
 	ImageIOType::Pointer gdcmImageIO = ImageIOType::New();
 	itkreader->SetImageIO( gdcmImageIO );
 	try
@@ -130,21 +42,35 @@ void FileDialog::on_pushButton_clicked()
 		std::cerr << e << std::endl;
 	}
 
+//Write the image in DICOM format
+   
+   	WriterType::Pointer writerori = WriterType::New();
+   	writerori->SetInput( itkreader->GetOutput() );
+   	writerori->SetFileName( "Original.dcm" );   
+   
+   	writerori->SetImageIO( gdcmImageIO );
+
+  	try
+    	{
+    		writerori->Update();
+    	}
+  	catch( itk::ExceptionObject & error )
+    	{
+    		std::cerr << "Error: " << error << std::endl;
+        }
+
+
 //Convert it into png
 
-	typedef unsigned char WriterPixelType1;
-	typedef itk::Image<WriterPixelType1,2> WriterTypeShr;
-
-	typedef itk::RescaleIntensityImageFilter<InputImageType, WriterTypeShr> RescaleFilterType;
-	RescaleFilterType::Pointer rescalar = RescaleFilterType::New();
+	/*RescaleFilterType::Pointer rescalar = RescaleFilterType::New();
 	rescalar->SetOutputMinimum(0);
-	rescalar->SetOutputMaximum(255);
-	rescalar->SetInput(itkreader->GetOutput());
+	rescalar->SetOutputMaximum(255);*/
+	CastFilterType::Pointer caster = CastFilterType::New();
+	caster->SetInput(itkreader->GetOutput());
 
-	typedef itk::ImageFileWriter<WriterTypeShr> pngWriterType1;
 	pngWriterType1::Pointer pngWriter1 = pngWriterType1::New();
 	pngWriter1->SetFileName("OriginalPNG.png");
-	pngWriter1->SetInput(rescalar->GetOutput());
+	pngWriter1->SetInput(caster->GetOutput());
 	try
 	{
 		pngWriter1->Update();
@@ -152,17 +78,22 @@ void FileDialog::on_pushButton_clicked()
 	catch(itk::ExceptionObject & e)
 	{
 		std::cerr << "Exception in file reader " << std::endl;
-	        std::cerr << e << std::endl;
+	    std::cerr << e << std::endl;
 	}
 
+//calculate the size of the input image
+	int sizeitkimage0 = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize()[0];
+	int sizeitkimage1 = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize()[1];
+	std::cout<<sizeitkimage0<<endl<<sizeitkimage1;
+	
 //Flip the image
 	itk::FixedArray<bool, 2> flipAxes;
 	flipAxes[0] = false;
 	flipAxes[1] = true;
-	typedef itk::FlipImageFilter<InputImageType> FlipImageFilterType;
 	FlipImageFilterType::Pointer flipfilter = FlipImageFilterType::New();
 	flipfilter->SetInput(itkreader->GetOutput());
 	flipfilter->SetFlipAxes(flipAxes);
+
 
 //Convert the Image to a VTK Image
 
@@ -172,34 +103,20 @@ void FileDialog::on_pushButton_clicked()
 	connector->SetInput(flipfilter->GetOutput());
 	connector->Update();
 
-//Read the png file
-  	/*vtkSmartPointer<vtkPNGReader> pngreader = vtkSmartPointer<vtkPNGReader>::New();
-  	pngreader->SetFileName("OriginalPNG.png");
-	pngreader->Update();
-
-//Change (0,0) from bottom left to image centre
-	vtkSmartPointer<vtkImageChangeInformation> changeInformation = vtkSmartPointer<vtkImageChangeInformation>::New();
-	changeInformation->SetCenterImage(1);
-changeInformation->SetInputConnection(pngreader->GetOutputPort());
-	changeInformation->Update();*/
 
 
 //Drawing the rectangle
 	//Actor
 	vtkSmartPointer<vtkImageActor> actor =  vtkSmartPointer<vtkImageActor>::New();
 	actor->GetMapper()->SetInputData(connector->GetOutput());
-	/*#if VTK_MAJOR_VERSION <= 5
-  		actor->SetInput(changeInformation->GetOutput());
-	#else
-  		//changeInformation->Update();
-  		actor->GetMapper()->SetInputData(changeInformation->GetOutput());
-	#endif*/
-	
+
 	//Renderer
 	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
  
 	//Renderer Window
   	vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+	//renderWindow->SetSize(sizeitkimage0,sizeitkimage1);
+	//renderWindow->SetSize(700,700);
   	renderWindow->AddRenderer(renderer);
  
 	//Render Window Interactor
@@ -226,18 +143,18 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
 	// Add the actors to the scene
   	renderer->AddActor(actor);
 	renderer->SetBackground(1,1,1);
-  	renderWindow->Render();
-  	renderWindowInteractor->Initialize();
-  	renderWindow->Render();
+	//renderWindow->SetFullScreen(true);
+  	//renderWindow->Render();
+  	//renderWindowInteractor->Initialize();
+  	//renderWindow->Render();
   	borderWidget->On();
   	renderWindowInteractor->Start();
 
+
 //Select point which will also serve as the seed
-	vtkSmartPointer<vtkImageData> imagevtk = vtkSmartPointer<vtkImageData>::New();
-	imagevtk = connector->GetOutput();
-	vtkSmartPointer<vtkPropPicker> pointpicker = vtkSmartPointer<vtkPropPicker>::New();
+	/*vtkSmartPointer<vtkPropPicker> pointpicker = vtkSmartPointer<vtkPropPicker>::New();	
 	pointpicker->PickProp(renderWindowInteractor->GetEventPosition()[0], renderWindowInteractor->GetEventPosition()[1],renderer);
-	double pos[2];
+	double pos[3];
 	pointpicker->GetPickPosition(pos);
 	
 	std::string message = "Location: ( ";
@@ -246,22 +163,26 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
         message += vtkVariant( pos[1] ).ToString();
         message += " ) ";
 	
-	std::cout<<message<<endl;
+	std::cout<<message<<endl;*/
 
-//Convert to display coordinates
-	/*vtkSmartPointer<vtkCoordinate> coordinate = vtkSmartPointer<vtkCoordinate>::New();
-	coordinate->SetValue(pos);
-	coordinate->SetCoordinateSystemToDisplay();
-	double *displayPos = coordinate->GetValue();
 
-	std::string message1 = "Location: ( ";
-        message1 += vtkVariant( displayPos[0] ).ToString();
-        message1 += ", ";
-        message1 += vtkVariant( displayPos[1] ).ToString();
-        message1 += " ) ";
+	std::cout << "Picking pixel: " << renderWindowInteractor->GetEventPosition()[0] << " " << renderWindowInteractor->GetEventPosition()[1] << std::endl;
+      	renderWindowInteractor->GetPicker()->Pick(renderWindowInteractor->GetEventPosition()[0], renderWindowInteractor->GetEventPosition()[1], 0, renderWindowInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer());
+      
+	/*double picked[3];
+	renderWindowInteractor->GetPicker()->GetPickPosition(picked);
+        std::cout << "Picked value: " << picked[0] << " " << picked[1] << " " << picked[2] << std::endl;*/
+
+	vtkSmartPointer<vtkPointPicker> pointpicker = vtkSmartPointer<vtkPointPicker>::New();
+	renderWindowInteractor->SetPicker(pointpicker);
+
+	std::string message = "Location: ( ";
+        message += vtkVariant( renderWindowInteractor->GetEventPosition()[0] ).ToString();
+        message += ", ";
+        message += vtkVariant( renderWindowInteractor->GetEventPosition()[1] ).ToString();
+        message += " ) ";
 	
-	std::cout<<message1<<endl;*/
-
+	std::cout<<message<<endl;
 
 //Annotations
 	vtkSmartPointer<vtkCornerAnnotation> annotation = vtkSmartPointer<vtkCornerAnnotation>::New();
@@ -275,23 +196,66 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
   	renderWindowInteractor->Start();
 	renderer->AddViewProp(annotation);
 	renderWindow->Render();
+	
+	//Width and Height to be used later
+	width = (borderCallback->upperRight[0] - borderCallback->lowerLeft[0])*2.5;
+	height = (borderCallback->upperRight[1] - borderCallback->lowerLeft[0])*2.5;
+	lowerLeftX = borderCallback->lowerLeft[0];
+	lowerLeftY = borderCallback->lowerLeft[1];
+ 
+	//Seed points to be used later
+	
+	seedX = (renderWindowInteractor->GetEventPosition()[0])*1.5;
+	seedY = (renderWindowInteractor->GetEventPosition()[1])*1.5;
+	cout<<seedX<<endl<<seedY<<endl;
 
+//Message
+	std::cout<<"Interaction Complete..."<<endl;
+
+//VTK PROCESSING ENDS
+
+
+}
+
+void FileDialog::on_pushButton_2_clicked()
+{
+      FileDialog::close();
+}
+
+void FileDialog::on_doubleSpinBox_valueChanged(double arg1)
+{
+
+   //threshold = float(arg1);
+    //ui->doubleSpinBox->setValue(threshold);
+
+	
+}
+
+
+
+void FileDialog::on_pushButton_3_clicked()
+{
+    //s2 = ui->lineEdit_2->text();
+    //setLevel = s2.toFloat();
+	
+	//FILTERS APPLIED
+
+//Message
+	std::cout<<"Start of Segmentation..."<<endl;
 
 //Extract the region of interest
-	InputImageType::SizeType inSize = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize();
-	typedef itk::RegionOfInterestImageFilter< InputImageType,InputImageType >ROIFilterType;
 	ROIFilterType::Pointer roifilter = ROIFilterType::New();
 	InputImageType::IndexType start;
-	start[0] = borderCallback->lowerLeft[0];
-	start[1] = borderCallback->lowerLeft[1];
-	
-	int width, height;
-	width = borderCallback->upperRight[0] - borderCallback->lowerLeft[0];
-	height = borderCallback->upperRight[1] - borderCallback->lowerLeft[0];
- 
+	//start[0] = lowerLeftX;
+	//start[1] = lowerLeftY;
+	start[0] = 0;
+	start[1] = 0;
+
 	InputImageType::SizeType size;
-	size[0] = width*2;
-	size[1] = height*2;
+	size[0] = width;
+	size[1] = height;
+	//size[0] = 400;
+	//size[1] = 400;
  
   	InputImageType::RegionType desiredRegion;
   	desiredRegion.SetSize(size);
@@ -299,20 +263,43 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
  
   	roifilter->SetRegionOfInterest(desiredRegion);
   	roifilter->SetInput(itkreader->GetOutput());
+	//InputImageType::Pointer ROI = roifilter->GetOutput();
+
+//Write the ROI in DICOM
+
+   
+   	WriterType::Pointer writerroi = WriterType::New();
+   	writerroi->SetInput( roifilter->GetOutput() );
+   	writerroi->SetFileName( "ROI.dcm" );   
+   
+   	writerroi->SetImageIO( gdcmImageIO );
+
+  	try
+    	{
+    		writerroi->Update();
+		std::cout<<"ROI Generated..."<<endl;
+    	}
+  	catch( itk::ExceptionObject & error )
+    	{
+    		std::cerr << "Error: " << error << std::endl;
+        }
+
 
 //Write the ROI
 
-	RescaleFilterType::Pointer rescalarROI = RescaleFilterType::New();
+	/*RescaleFilterType::Pointer rescalarROI = RescaleFilterType::New();
 	rescalarROI->SetOutputMinimum(0);
-	rescalarROI->SetOutputMaximum(255);
-	rescalarROI->SetInput(roifilter->GetOutput());
+	rescalarROI->SetOutputMaximum(255);*/
+	CastFilterType::Pointer caster1 = CastFilterType::New();
+	caster1->SetInput(roifilter->GetOutput());
 	
 	pngWriterType1::Pointer pngWriterROI = pngWriterType1::New();
 	pngWriterROI->SetFileName("ROI.png");
-	pngWriterROI->SetInput(rescalarROI->GetOutput());
+	pngWriterROI->SetInput(caster1->GetOutput());
 	try
 	{
 		pngWriterROI->Update();
+		std::cout<<"ROI Generated..."<<endl;
 	}
 	catch(itk::ExceptionObject & e)
 	{
@@ -321,15 +308,14 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
 	}
 
 
- 
-//Create the marker image
-
+//create marker image
+	//Create the marker image
 	InputImageType::RegionType region1;
 	InputImageType::IndexType start1;
 	start1[0] = start[0];
 	start1[1] = start[1];
 
-	//InputImageType::Pointer itkimage = roifilter->GetOutput();
+	InputImageType::Pointer itkimage = itkreader->GetOutput();
 	//region1= itkimage->GetLargestPossibleRegion();
 	InputImageType::SizeType size1;
 	size1[0]=size[0];
@@ -338,26 +324,36 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
 	region1.SetSize(size1);
 	region1.SetIndex(start1);
 	InputImageType::Pointer markerimage = InputImageType::New();
+	
 	markerimage->SetRegions(region1);
 	markerimage->Allocate();
-
+	markerimage->FillBuffer(0);
 	InputImageType::IndexType pixelindex;
-	pixelindex[0] = pos[0]+250;
-	pixelindex[1] = pos[1]+250;
-	markerimage->SetPixel(pixelindex,255);
+	
+	for(int i=seedX-30;i<=seedX+30;i++)
+	{
+		for(int j=seedY-30;j<=seedY+30;j++)
+		{
+			pixelindex[0] = i;
+			pixelindex[1] = j;
+			markerimage->SetPixel(pixelindex,255);
+		}
+	}
+	
 
-
-	RescaleFilterType::Pointer rescalarM = RescaleFilterType::New();
+	/*RescaleFilterType::Pointer rescalarM = RescaleFilterType::New();
 	rescalarM->SetOutputMinimum(0);
-	rescalarM->SetOutputMaximum(255);
-	rescalarM->SetInput(markerimage);
+	rescalarM->SetOutputMaximum(255);*/
+	CastFilterType::Pointer caster2 = CastFilterType::New();
+	caster2->SetInput(markerimage);
 	
 	pngWriterType1::Pointer pngWriterM = pngWriterType1::New();
-	pngWriterM->SetFileName("MarkerImage.png");
-	pngWriterM->SetInput(rescalarM->GetOutput());
+	pngWriterM->SetFileName("MI.png");
+	pngWriterM->SetInput(caster2->GetOutput());
 	try
 	{
 		pngWriterM->Update();
+		std::cout<<"MI Generated..."<<endl;
 	}
 	catch(itk::ExceptionObject & e)
 	{
@@ -365,14 +361,32 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
     		std::cerr << e << std::endl;
 	}
 
+//WRITE the marker image in DICOM
+   
+   	WriterType::Pointer writerMI = WriterType::New();
+   	writerMI->SetInput( markerimage );
+   	writerMI->SetFileName( "MI.dcm" );   
+   
+   	writerMI->SetImageIO( gdcmImageIO );
+
+  	try
+    	{
+    		writerMI->Update();
+		std::cout<<"MI Generated..."<<endl;
+    	}
+  	catch( itk::ExceptionObject & error )
+    	{
+    		std::cerr << "Error: " << error << std::endl;
+        }
+
 
 
 //FILTER 1 - gradient magnitude image filter
-	//typedef itk::GradientMagnitudeImageFilter<InputImageType, InputImageType> MagGradientFilterType;
    	typedef itk::GradientMagnitudeRecursiveGaussianImageFilter<InputImageType, InputImageType> MagGradientFilterType;
    	MagGradientFilterType::Pointer maggradfilter = MagGradientFilterType::New();
    	//maggradfilter->SetInput(itkreader->GetOutput());
 	maggradfilter->SetInput(roifilter->GetOutput());
+
 
 //Write the gradient image to a png file
 	RescaleFilterType::Pointer rescalar2 = RescaleFilterType::New();
@@ -386,6 +400,7 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
 	try
 	{
 		pngWriter2->Update();
+		std::cout<<"Gradient Image Generated..."<<endl;
 	}
 	catch(itk::ExceptionObject & e)
 	{
@@ -404,6 +419,7 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
   	try
     	{
     		writer1->Update();
+		std::cout<<"Gradient Image Generated..."<<endl;
     	}
   	catch( itk::ExceptionObject & error )
     	{
@@ -412,170 +428,30 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
 
 
 
-//AUTOMATIC MARKER
-
-	//FILTER 2 - OPENING BY RECONSTRUCTION
-
-	//create the structuring element
-	typedef itk::FlatStructuringElement<2> StructuringElementType;
-	StructuringElementType::RadiusType elementRadius;
-	elementRadius.Fill(1);
-	StructuringElementType structuringElement = StructuringElementType::Ball(elementRadius);
- 
-	//Erosion of an image
-	typedef itk::GrayscaleErodeImageFilter <InputImageType, InputImageType, StructuringElementType> GrayscaleErodeImageFilterType;
-	GrayscaleErodeImageFilterType::Pointer erodeFilter = GrayscaleErodeImageFilterType::New();
-	erodeFilter->SetInput(roifilter->GetOutput());
-	//erodeFilter->SetInput(itkreader->GetOutput());
-	erodeFilter->SetKernel(structuringElement);
-
-	//Reconstruction By Dilation
-	typedef itk::ReconstructionByDilationImageFilter< InputImageType, InputImageType > ReconstructionDilationType;
-	ReconstructionDilationType::Pointer reconstructionDilation = ReconstructionDilationType::New();
-	reconstructionDilation->SetMaskImage(roifilter->GetOutput());
-	//reconstructionDilation->SetMaskImage(itkreader->GetOutput());
-	reconstructionDilation->SetMarkerImage(erodeFilter->GetOutput());
-	reconstructionDilation->SetFullyConnected('true');
-	reconstructionDilation->Update();
-
-	//WRITE DICOM IMAGE
-   
-	WriterType::Pointer writer2 = WriterType::New();
-	writer2->SetInput( reconstructionDilation->GetOutput() );
-	writer2->SetFileName( "OpenReconstruction.dcm" );   
-   
-	writer2->SetImageIO( gdcmImageIO );
-
-	try
-	{
-    		writer2->Update();
-    	}
-  	catch( itk::ExceptionObject & error )
-    	{
-    		std::cerr << "Error: " << error << std::endl;
-    	}
-
-
-	//FILTER 3 - CLOSING BY RECONSTRUCTION
-
-	//Dilate the output of the open by reconstruction
-	elementRadius.Fill(3);
-	StructuringElementType structuringElement2 = StructuringElementType::Ball(elementRadius);
-
-	typedef itk::GrayscaleDilateImageFilter <InputImageType, InputImageType, StructuringElementType> GrayscaleDilateImageFilterType;
-	GrayscaleDilateImageFilterType::Pointer dilateFilter = GrayscaleDilateImageFilterType::New();
-	dilateFilter->SetInput(reconstructionDilation->GetOutput());
-	dilateFilter->SetKernel(structuringElement2);
-
-	typedef itk::ReconstructionByErosionImageFilter< InputImageType, InputImageType > ReconstructionErosionType;
-	ReconstructionErosionType::Pointer reconstructionErosion = ReconstructionErosionType::New();
-	reconstructionErosion->SetMaskImage(reconstructionDilation->GetOutput());
-	reconstructionErosion->SetMarkerImage(dilateFilter->GetOutput());
-	reconstructionErosion->SetFullyConnected('true');
-	reconstructionErosion->Update();
-
-
-	//WRITE DICOM IMAGE
-   	WriterType::Pointer writer3 = WriterType::New();
-   	writer3->SetInput( reconstructionErosion->GetOutput() );
-   	writer3->SetFileName( "CloseReconstruction.dcm" );   
-   
-   	writer3->SetImageIO( gdcmImageIO );
-
-  	try
-    	{
-    		writer3->Update();
-    	}
-  	catch( itk::ExceptionObject & error )
-    	{
-    		std::cerr << "Error: " << error << std::endl;
-    	}
-
-
-	//FILTER 4 - MORPHOLOGICAL CLOSING
-	typedef itk::GrayscaleMorphologicalClosingImageFilter<InputImageType, InputImageType, StructuringElementType> MorphClosingFilterType;
-	MorphClosingFilterType::Pointer MorphologicalClosingFilter = MorphClosingFilterType::New();
-	MorphologicalClosingFilter->SetKernel(structuringElement2);
-	MorphologicalClosingFilter->SetInput(reconstructionErosion->GetOutput());
-
-
-	//WRITE DICOM IMAGE
-   	WriterType::Pointer writer4 = WriterType::New();
-   	writer4->SetInput( MorphologicalClosingFilter->GetOutput() );
-   	writer4->SetFileName( "MorpClose.dcm" );   
-   	writer4->SetImageIO( gdcmImageIO );
-  	try
-    	{
-    		writer4->Update();
-    	}
-  	catch( itk::ExceptionObject & error )
-    	{
-    		std::cerr << "Error: " << error << std::endl;
-    	}
-
-
-	//FILTER 5 - MORPHOLOGICAL ERODING
-	GrayscaleErodeImageFilterType::Pointer erodeFilter2 = GrayscaleErodeImageFilterType::New();
-	erodeFilter2->SetKernel(structuringElement2);
-	erodeFilter2->SetInput(MorphologicalClosingFilter->GetOutput());
-
-
-	//WRITE DICOM IMAGE
-
-   
-   	WriterType::Pointer writer5 = WriterType::New();
-   	writer5->SetInput( erodeFilter2->GetOutput() );
-   	writer5->SetFileName( "morphErode.dcm" );   
-   	writer5->SetImageIO( gdcmImageIO );
-  	try
-    	{
-    		writer5->Update();
-    	}
-  	catch( itk::ExceptionObject & error )
-    	{
-    		std::cerr << "Error: " << error << std::endl;
-    	}
-
-
-	//FILTER 6 - Thresholding an image
-	typedef itk::BinaryThresholdImageFilter <InputImageType, InputImageType> ThresholdImageFilterType;
-	ThresholdImageFilterType::Pointer thresholdFilter = ThresholdImageFilterType::New();
-	InputPixelType background = 0;
-	InputPixelType foreground = 255;
-	thresholdFilter->SetLowerThreshold(10);
-  	thresholdFilter->SetUpperThreshold(230);
-  	thresholdFilter->SetInsideValue(255);
-  	thresholdFilter->SetOutsideValue(0);
-	thresholdFilter->SetInput( erodeFilter2->GetOutput() );
-
-	//WRITE THE THRESHOLDED IMAGE
-   	WriterType::Pointer writer6 = WriterType::New();
-   	writer6->SetInput( thresholdFilter->GetOutput() );
-   	writer6->SetFileName( "threshold.dcm" );   
-   	writer6->SetImageIO( gdcmImageIO );
-  	try
-    	{
-    		writer6->Update();
-    	}
-  	catch( itk::ExceptionObject & error )
-    	{
-    		std::cerr << "Error: " << error << std::endl;
-	}
-
-
-
-
 
 
 	//FILTER 7 - MARKER BASED WATERSHED SEGMENTATION -
 
+	//Resample the gradient image
+	ResampleFilterType::Pointer resample = ResampleFilterType::New();
+	resample->SetReferenceImage(markerimage);
+	
+	ResampleFilterType::OriginPointType ori;
+	ori = resample->GetOutputOrigin();
+	
+	ResampleFilterType::SpacingType space;
+	space = resample->GetOutputSpacing();
+	
+	InputImageType::Pointer resampledImage = maggradfilter->GetOutput();
+	resampledImage->SetOrigin(ori);
+	resampledImage->SetSpacing(space);
 	
 	//GENERATE MARKERS
   	typedef itk::Image<unsigned short, 2 > OutputImageType2;
   	typedef itk::ConnectedComponentImageFilter <InputImageType, OutputImageType2 > ConnectedComponentImageFilterType;
   	ConnectedComponentImageFilterType::Pointer connected = ConnectedComponentImageFilterType::New();
-  	connected->SetInput(thresholdFilter->GetOutput());
-	//connected->SetInput(markerimage);
+	connected->FullyConnectedOn();
+  	connected->SetInput(markerimage);
   	connected->Update();
   	std::cout << "Number of objects: " << connected->GetObjectCount() << std::endl;
 
@@ -592,6 +468,7 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
   	try
     	{
     		writer7->Update();
+		std::cout<<"Marker Image Generated..."<<endl;
     	}
   	catch( itk::ExceptionObject & error )
     	{
@@ -616,49 +493,11 @@ changeInformation->SetInputConnection(pngreader->GetOutputPort());
   	try
     	{
     		writer8->Update();
+		std::cout<<"Watershed Image Generated..."<<endl;
     	}
   	catch( itk::ExceptionObject & error )
     	{
     		std::cerr << "Error: " << error << std::endl;
     	}
-
-
-	//WRITE THE ORIGINAL DICOM IMAGE
-   
-   	WriterType::Pointer writer = WriterType::New();
-   	writer->SetInput( itkreader->GetOutput() );
-   	writer->SetFileName( "original.dcm" );   
-  	// writer->SetInput(erodeFilter2->GetOutput());
-   	writer->SetImageIO( gdcmImageIO );
-
-  	try
-    	{
-    		writer->Update();
-    	}
-  	catch( itk::ExceptionObject & error )
-    	{
-    		std::cerr << "Error: " << error << std::endl;
-    	}
-
-}
-
-void FileDialog::on_pushButton_2_clicked()
-{
-      FileDialog::close();
-}
-
-void FileDialog::on_doubleSpinBox_valueChanged(double arg1)
-{
-
-    threshold = float(arg1);
-    ui->doubleSpinBox->setValue(threshold);
-
-}
-
-
-
-void FileDialog::on_pushButton_3_clicked()
-{
-    s2 = ui->lineEdit_2->text();
-    setLevel = s2.toFloat();
+	std::cout<<"Segmentation Complete..."<<endl;
 }
