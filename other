@@ -1,0 +1,137 @@
+//FILTER 1
+    /*typedef itk::GradientAnisotropicDiffusionImageFilter<InputImageType, InputImageType >FilterType;
+    FilterType::Pointer filter = FilterType::New();
+
+   filter->SetInput( reader->GetOutput() ); 
+   filter->SetNumberOfIterations(15);
+   filter->SetTimeStep(0.125);
+   filter->SetConductanceParameter(0.5);
+   filter->Update();
+
+/
+
+//FILTER 3
+   typedef itk::WatershedImageFilter<InputImageType> WatershedFilterType;
+   WatershedFilterType::Pointer watershed = WatershedFilterType::New();
+   watershed->SetLevel(setLevel);
+   watershed->SetThreshold(threshold);
+   watershed->SetInput(maggradfilter->GetOutput()); //The output of WatershedImageFilter is an image of unsigned long integer labels
+
+//FILTER 4
+   typedef itk::Functor::ScalarToRGBPixelFunctor<unsigned long> ColorMapFunctorType;
+   typedef WatershedFilterType::OutputImageType  LabeledImageType;
+   typedef itk::UnaryFunctorImageFilter<LabeledImageType,OutputImageType,ColorMapFunctorType> ColorMapFilterType;
+
+   ColorMapFilterType::Pointer colorMapFilter = ColorMapFilterType::New();
+   colorMapFilter->SetInput(watershed->GetOutput());
+
+
+
+//WRITE DICOM IMAGE
+
+   
+   WriterType::Pointer writer = WriterType::New();
+   writer->SetInput( colorMapFilter->GetOutput() );
+   writer->SetFileName( "OutputImage.png" );   
+   
+   //writer->SetImageIO( gdcmImageIO );
+
+  try
+    {
+    writer->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error: " << error << std::endl;
+    //return EXIT_FAILURE;
+    }
+
+    //QPixmap pixop("OutputImage.dcm");
+    //ui->label_2->setPixmap(pixop);
+
+
+
+*/
+    
+
+INTERACTION - 
+
+/*double *bounds = actor->GetDisplayBounds();
+	vtkSmartPointer<vtkImageViewer2> viewer = vtkSmartPointer<vtkImageViewer2>::New();
+	int axis = viewer->GetSliceOrientation();
+	pos[axis] = bounds[2*axis];
+	vtkSmartPointer<vtkPointData> pd = vtkSmartPointer<vtkPointData>::New();
+	pd = imagevtk->GetPointData();
+
+	vtkSmartPointer<vtkPointData> PointData = vtkSmartPointer<vtkPointData>::New();
+	PointData->InterpolateAllocate(pd,1,1);
+	//tolerance as a function of size of source data
+	double tol2 = imagevtk->GetLength();
+	tol2 = tol2 ? tol2*tol2 / 1000.0 : 0.001;
+
+	//find the cell that contains pos
+	int subId;
+	double pcoords[3], weights[8];
+	vtkSmartPointer<vtkCell> cell = vtkSmartPointer<vtkCell>::New();
+	cell = imagevtk->FindAndGetCell(pos, NULL, -1, tol2, subId, pcoords, weights);
+	PointData->InterpolatePoint(pd,0,cell->PointIds,weights);*/
+
+
+
+
+//Stencil
+
+//Get Stencil Data
+	vtkSmartPointer<vtkImageToImageStencil> imageToImageStencil = vtkSmartPointer<vtkImageToImageStencil>::New();
+	imageToImageStencil->SetInputData(segResult->GetOutput());
+
+	vtkSmartPointer<vtkImageStencil> stencil = vtkSmartPointer<vtkImageStencil>::New();
+  	stencil->SetInputConnection(2, imageToImageStencil->GetOutputPort());
+	stencil->ReverseStencilOn();
+	stencil->SetBackgroundInputData(originalImage->GetOutput());
+  	stencil->SetInputData(segResult->GetOutput());
+	stencil->Update();
+	// Create an actor
+  	vtkSmartPointer<vtkImageActor> Stencilactor = vtkSmartPointer<vtkImageActor>::New();
+  	Stencilactor->GetMapper()->SetInputConnection(stencil->GetOutputPort());
+ 
+  	// Setup renderer
+  	vtkSmartPointer<vtkRenderer> Stencilrenderer = vtkSmartPointer<vtkRenderer>::New();
+  	Stencilrenderer->AddActor(Stencilactor);
+  	//Stencilrenderer->ResetCamera();
+ 
+  	// Setup render window
+  	vtkSmartPointer<vtkRenderWindow> StencilrenderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+  	StencilrenderWindow->AddRenderer(Stencilrenderer);
+ 
+  	// Setup render window interactor
+  	vtkSmartPointer<vtkRenderWindowInteractor> StencilrenderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+  	vtkSmartPointer<vtkInteractorStyleImage> Stencilstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
+ 
+  	StencilrenderWindowInteractor->SetInteractorStyle(Stencilstyle);
+ 
+  	// Render and start interaction
+  	StencilrenderWindowInteractor->SetRenderWindow(StencilrenderWindow);
+ 	StencilrenderWindowInteractor->Initialize();
+  	StencilrenderWindowInteractor->Start();
+
+
+//Convert RGB to Gray VTK
+
+//convert RGB to grayscale
+	/*int channels_before_component_filter = segResult->GetNumberOfScalarComponents();
+	vtkSmartPointer<vtkImageExtractComponents> component_extractor = vtkSmartPointer<vtkImageExtractComponents>::New();
+	component_extractor->SetInputConnection(segResult->GetOutputPort());
+    	component_extractor->SetComponents(0, 1, 2);
+    	component_extractor->Update();
+
+	int channels_before_luminance_filter = component_extractor->GetOutput()->GetNumberOfScalarComponents(); //3
+
+	vtkSmartPointer<vtkImageLuminance> luminance_filter = vtkSmartPointer<vtkImageLuminance>::New();
+    	luminance_filter->SetInputConnection(component_extractor->GetOutputPort());
+    	luminance_filter->Update();
+
+	int channels_after_luminance_filter = luminance_filter->GetOutput()->GetNumberOfScalarComponents(); //1
+	*/
+//blend->AddInputConnection(luminance_filter->GetOutputPort());
+
