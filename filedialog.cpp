@@ -62,15 +62,16 @@ void FileDialog::on_pushButton_clicked()
 
 //Convert it into png
 
-	/*RescaleFilterType::Pointer rescalar = RescaleFilterType::New();
+	RescaleFilterType::Pointer rescalar = RescaleFilterType::New();
 	rescalar->SetOutputMinimum(0);
-	rescalar->SetOutputMaximum(255);*/
-	CastFilterType::Pointer caster = CastFilterType::New();
-	caster->SetInput(itkreader->GetOutput());
+	rescalar->SetOutputMaximum(255);
+	rescalar->SetInput(itkreader->GetOutput());
+	/*CastFilterType::Pointer caster = CastFilterType::New();
+	caster->SetInput(itkreader->GetOutput());*/
 
 	pngWriterType1::Pointer pngWriter1 = pngWriterType1::New();
 	pngWriter1->SetFileName("OriginalPNG.png");
-	pngWriter1->SetInput(caster->GetOutput());
+	pngWriter1->SetInput(rescalar->GetOutput());
 	try
 	{
 		pngWriter1->Update();
@@ -82,15 +83,15 @@ void FileDialog::on_pushButton_clicked()
 	}
 
 //calculate the size of the input image
-	int sizeitkimage0 = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize()[0];
-	int sizeitkimage1 = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize()[1];
-	std::cout<<sizeitkimage0<<endl<<sizeitkimage1;
+	sizeitkimage0 = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize()[0];
+	sizeitkimage1 = itkreader->GetOutput()->GetLargestPossibleRegion().GetSize()[1];
+	std::cout<<"ImageSize: "<<sizeitkimage0<<"\t"<<sizeitkimage1<<endl;
 	
 //Flip the image
 	itk::FixedArray<bool, 2> flipAxes;
 	flipAxes[0] = false;
 	flipAxes[1] = true;
-	FlipImageFilterType::Pointer flipfilter = FlipImageFilterType::New();
+	flipfilter = FlipImageFilterType::New();
 	flipfilter->SetInput(itkreader->GetOutput());
 	flipfilter->SetFlipAxes(flipAxes);
 
@@ -104,18 +105,27 @@ void FileDialog::on_pushButton_clicked()
 	connector->Update();
 
 
-
 //Drawing the rectangle
+vtkImageData *vtkImage = connector->GetOutput();
+double* IOrigin = vtkImage->GetOrigin();
+int IExtent[6];
+vtkImage->GetExtent(IExtent);
+cout<<"Image Origin: "<<IOrigin[0]<<"\t"<<IOrigin[1]<<"\t"<<IOrigin[2]<<endl;
+cout<<"Image Extent: "<<IExtent[0]<<"\t"<<IExtent[1]<<"\t"<<IExtent[2]<<"\t"<<IExtent[3]<<"\t"<<IExtent[4]<<"\t"<<IExtent[5]<<endl;
+vtkImage->SetOrigin(0.0,0.0,0.0);
+IOrigin = vtkImage->GetOrigin();
+cout<<"Image Origin: "<<IOrigin[0]<<"\t"<<IOrigin[1]<<"\t"<<IOrigin[2]<<endl;
+
 	//Actor
 	vtkSmartPointer<vtkImageActor> actor =  vtkSmartPointer<vtkImageActor>::New();
 	actor->GetMapper()->SetInputData(connector->GetOutput());
-
+	
 	//Renderer
 	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
  
 	//Renderer Window
   	vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
-	//renderWindow->SetSize(sizeitkimage0,sizeitkimage1);
+	renderWindow->SetSize(sizeitkimage0,sizeitkimage1);
 	//renderWindow->SetSize(700,700);
   	renderWindow->AddRenderer(renderer);
  
@@ -135,14 +145,37 @@ void FileDialog::on_pushButton_clicked()
   	borderWidget->SelectableOff();
 
   	vtkSmartPointer<vtkBorderCallback> borderCallback = vtkSmartPointer<vtkBorderCallback>::New();
+	borderCallback->SetImageRenWin(renderWindow);
   	borderCallback->SetRenderer(renderer);
   	borderCallback->SetImageActor(actor);
- 
+//actor bounds
+actor->GetDisplayExtent(bounds);
+	actorXmin = bounds[0];
+	actorXmax = bounds[1];
+	actorYmin = bounds[2];
+	actorYmax = bounds[3];
+	actorZmin = bounds[4];
+	actorZmax = bounds[5];
+	std::cout<<endl<<"Xmin: "<<actorXmin<<endl<<"Xmax: "<<actorXmax<<endl<<"Ymin: "<<actorYmin<<endl<<"Ymax:"<<actorYmax<<endl<<"Zmin: "<<actorZmin<<endl<<"Zmax: "<<actorZmax<<endl;
+
+actor->GetPosition(position);
+std::cout<<"Position: "<<position[0]<<"	"<<position[1]<<" "<<position[2]<<endl;
+//actor->SetPosition(80,80,0);
+double *AOrigin = actor->GetOrigin();
+std::cout<<"Actor Origin: "<<AOrigin[0]<<"\t"<<AOrigin[1]<<"\t"<<AOrigin[2]<<endl;
+
+//renderer origin and size
+int* pOrigin = renderer->GetOrigin();
+int* pSize = renderer->GetSize(); 
+std::cout<<"renderer Size: "<<pSize[0]<<"\t"<<pSize[1]<<endl<<"renderer origin: "<<pOrigin[0]<<"\t"<<pOrigin[1]<<"\t"<<pOrigin[2]<<endl;
+
+
+
   	borderWidget->AddObserver(vtkCommand::InteractionEvent,borderCallback);
 
 	// Add the actors to the scene
   	renderer->AddActor(actor);
-	renderer->SetBackground(1,1,1);
+	renderer->SetBackground(255,255,255);
 	//renderWindow->SetFullScreen(true);
   	//renderWindow->Render();
   	//renderWindowInteractor->Initialize();
@@ -151,23 +184,17 @@ void FileDialog::on_pushButton_clicked()
   	renderWindowInteractor->Start();
 
 
-//Select point which will also serve as the seed
-	/*vtkSmartPointer<vtkPropPicker> pointpicker = vtkSmartPointer<vtkPropPicker>::New();	
-	pointpicker->PickProp(renderWindowInteractor->GetEventPosition()[0], renderWindowInteractor->GetEventPosition()[1],renderer);
-	double pos[3];
-	pointpicker->GetPickPosition(pos);
-	
-	std::string message = "Location: ( ";
-        message += vtkVariant( pos[0] ).ToString();
-        message += ", ";
-        message += vtkVariant( pos[1] ).ToString();
-        message += " ) ";
-	
-	std::cout<<message<<endl;*/
 
+/*QuickView viewer;
+  viewer.AddImage(flipfilter->GetOutput());
+  viewer.Visualize();*/
+
+
+
+//Select point which will also serve as the seed
 
 	std::cout << "Picking pixel: " << renderWindowInteractor->GetEventPosition()[0] << " " << renderWindowInteractor->GetEventPosition()[1] << std::endl;
-      	renderWindowInteractor->GetPicker()->Pick(renderWindowInteractor->GetEventPosition()[0], renderWindowInteractor->GetEventPosition()[1], 0, renderWindowInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer());
+      	renderWindowInteractor->GetPicker()->Pick(renderWindowInteractor->GetEventPosition()[0], renderWindowInteractor->GetEventPosition()[1], 0, 			   renderWindowInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer());
       
 	/*double picked[3];
 	renderWindowInteractor->GetPicker()->GetPickPosition(picked);
@@ -197,18 +224,78 @@ void FileDialog::on_pushButton_clicked()
 	renderer->AddViewProp(annotation);
 	renderWindow->Render();
 	
-	//Width and Height to be used later
-	width = (borderCallback->upperRight[0] - borderCallback->lowerLeft[0])*2.5;
-	height = (borderCallback->upperRight[1] - borderCallback->lowerLeft[0])*2.5;
-	lowerLeftX = borderCallback->lowerLeft[0];
-	lowerLeftY = borderCallback->lowerLeft[1];
- 
-	//Seed points to be used later
-	
-	seedX = (renderWindowInteractor->GetEventPosition()[0])*1.5;
-	seedY = (renderWindowInteractor->GetEventPosition()[1])*1.5;
-	cout<<seedX<<endl<<seedY<<endl;
+//Size of the window
+	winszX = ceil(renderWindow->GetSize()[0]);
+	winszY = ceil(renderWindow->GetSize()[1]);
+	cout<<endl<<"Window Size: "<<winszX<<" "<<winszY<<endl;
 
+
+//Width and Height to be used later
+std::cout<<"Render Window State: "<<renderWindow->GetFullScreen()<<endl;
+if(winszX>512 && winszY>512)
+{
+	upperRightXold = borderCallback->upperRight[0]+(470);
+	upperRightYold = borderCallback->upperRight[1]+(140);
+	lowerLeftXold = borderCallback->lowerLeft[0]-(470);
+	lowerLeftYold = borderCallback->lowerLeft[1]-(140);
+}
+else
+{
+	upperRightXold = borderCallback->upperRight[0]+(0);
+	upperRightYold = borderCallback->upperRight[1]+(0);
+	lowerLeftXold = borderCallback->lowerLeft[0]-(0);
+	lowerLeftYold = borderCallback->lowerLeft[1]-(0);
+}
+	cout<<endl<<"Old Upper Right Coordinate in screen coordinates: "<<upperRightXold<<"	"<<upperRightYold<<endl;
+	URtempY = 0+(winszY - upperRightYold);
+	
+	convertCoordinates(upperRightXold, URtempY);
+	upperRightY = ceil(newY);
+	upperRightX = ceil(newX);
+	cout<<endl<<"New Upper Right Coordinate in pixel coordinates: "<<upperRightX<<" "<<upperRightY<<endl;
+
+
+
+	
+	cout<<endl<<"Old Lower Left Coordinate in screen coordinates: "<<lowerLeftXold<<" "<<lowerLeftYold<<endl;
+	convertCoordinates(lowerLeftXold, lowerLeftYold);
+	LLtempX = newX;
+	LLtempY = newY;
+	cout<<endl<<"New Lower Left Coordinate in pixel coordinates: "<<LLtempX<<" "<<LLtempY<<endl;
+	//wx = LLtempX - 0;
+	wy = LLtempY - 0;
+	//lowerLeftX = sizeitkimage0 - wx;
+	lowerLeftY = ceil(sizeitkimage1 - wy);
+	lowerLeftX = ceil(LLtempX);
+	cout<<endl<<"New Lower Left Coordinates after translating the origin: "<<lowerLeftX<<" "<<lowerLeftY<<endl;
+
+	//width = (borderCallback->upperRight[0] - borderCallback->lowerLeft[0])*2.5;
+	//height = (borderCallback->upperRight[1] - borderCallback->lowerLeft[0])*2.5;
+	
+	width = ceil(upperRightX - lowerLeftX);
+	height = ceil(lowerLeftY - upperRightY);
+	cout<<endl<<"Height: "<<height<<"\t Width: "<<width<<endl;
+ 
+//Seed points to be used later
+	
+	seedX = (renderWindowInteractor->GetEventPosition()[0]);
+	seedY = (renderWindowInteractor->GetEventPosition()[1]);
+
+
+	cout<<endl<<"Picked points in screen coordinates: "<<seedX<<endl<<seedY<<endl;
+	convertCoordinates(seedX, seedY);
+	seedXnew = newX;
+	seedYnew = newY;
+	std::cout<<endl << "Picked points in pixel coordinates: " << seedXnew << ", " << seedYnew << std::endl;
+
+	//wx = seedXnew - 0;
+	wy = seedYnew - 0;
+	
+	//seedXnew2 = sizeitkimage0 - wx;
+	seedYnew2 = ceil(sizeitkimage1 - wy);	
+	seedXnew2 = ceil(seedXnew);
+
+	std::cout<<endl << "Picked points in pixel coordinates: " << seedXnew2 << ", " << seedYnew2 << std::endl;
 //Message
 	std::cout<<"Interaction Complete..."<<endl;
 
@@ -246,10 +333,13 @@ void FileDialog::on_pushButton_3_clicked()
 //Extract the region of interest
 	ROIFilterType::Pointer roifilter = ROIFilterType::New();
 	InputImageType::IndexType start;
-	//start[0] = lowerLeftX;
-	//start[1] = lowerLeftY;
-	start[0] = 0;
-	start[1] = 0;
+	start[0] = lowerLeftX;
+	start[1] = upperRightY;
+//start[0] = 0;
+//start[1] = 0;
+
+//std::cout<<start<<endl;
+InputImageType::RegionType desiredRegion;
 
 	InputImageType::SizeType size;
 	size[0] = width;
@@ -257,12 +347,16 @@ void FileDialog::on_pushButton_3_clicked()
 	//size[0] = 400;
 	//size[1] = 400;
  
-  	InputImageType::RegionType desiredRegion;
-  	desiredRegion.SetSize(size);
   	desiredRegion.SetIndex(start);
+  	desiredRegion.SetSize(size);
+  	
  
-  	roifilter->SetRegionOfInterest(desiredRegion);
+  	
+	roifilter->SetExtractionRegion(desiredRegion);
   	roifilter->SetInput(itkreader->GetOutput());
+	//roifilter->SetRegionOfInterest(desiredRegion);
+	roifilter->SetDirectionCollapseToIdentity();
+	roifilter->Update();
 	//InputImageType::Pointer ROI = roifilter->GetOutput();
 
 //Write the ROI in DICOM
@@ -287,15 +381,16 @@ void FileDialog::on_pushButton_3_clicked()
 
 //Write the ROI
 
-	/*RescaleFilterType::Pointer rescalarROI = RescaleFilterType::New();
+	RescaleFilterType::Pointer rescalarROI = RescaleFilterType::New();
 	rescalarROI->SetOutputMinimum(0);
-	rescalarROI->SetOutputMaximum(255);*/
-	CastFilterType::Pointer caster1 = CastFilterType::New();
-	caster1->SetInput(roifilter->GetOutput());
+	rescalarROI->SetOutputMaximum(255);
+	rescalarROI->SetInput(roifilter->GetOutput());
+	//CastFilterType::Pointer caster1 = CastFilterType::New();
+	//caster1->SetInput(roifilter->GetOutput());
 	
 	pngWriterType1::Pointer pngWriterROI = pngWriterType1::New();
 	pngWriterROI->SetFileName("ROI.png");
-	pngWriterROI->SetInput(caster1->GetOutput());
+	pngWriterROI->SetInput(rescalarROI->GetOutput());
 	try
 	{
 		pngWriterROI->Update();
@@ -306,7 +401,6 @@ void FileDialog::on_pushButton_3_clicked()
 		std::cerr << "Exception in file reader " << std::endl;
     		std::cerr << e << std::endl;
 	}
-
 
 //create marker image
 	//Create the marker image
@@ -330,9 +424,9 @@ void FileDialog::on_pushButton_3_clicked()
 	markerimage->FillBuffer(0);
 	InputImageType::IndexType pixelindex;
 	
-	for(int i=seedX-30;i<=seedX+30;i++)
+	for(int i=seedXnew2-10;i<=seedXnew2+10;i++)
 	{
-		for(int j=seedY-30;j<=seedY+30;j++)
+		for(int j=seedYnew2-10;j<=seedYnew2+10;j++)
 		{
 			pixelindex[0] = i;
 			pixelindex[1] = j;
@@ -341,9 +435,58 @@ void FileDialog::on_pushButton_3_clicked()
 	}
 	
 
-	/*RescaleFilterType::Pointer rescalarM = RescaleFilterType::New();
-	rescalarM->SetOutputMinimum(0);
-	rescalarM->SetOutputMaximum(255);*/
+	seed2 = lowerLeftX - 20;
+	seed3 = lowerLeftY - 20;
+	//seed2 = seedX + 60;
+	//seed3 = seedY + 60;	
+	for(int i=seed2-5;i<=seed2+5;i++)
+	{
+		for(int j=seed3-5;j<=seed3+5;j++)
+		{
+			pixelindex[0] = i;
+			pixelindex[1] = j;
+			markerimage->SetPixel(pixelindex,255);
+		}
+	}
+
+	
+
+	/*seed4 = seedXnew-60;
+	seed5 = seedYnew-60;
+	for(int i=seed4-10;i<=seed4+10;i++)
+	{
+		for(int j=seed5-10;j<=seed5+10;j++)
+		{
+			pixelindex[0] = i;
+			pixelindex[1] = j;
+			markerimage->SetPixel(pixelindex,255);
+		}
+	}
+
+	seed6 = seedXnew;
+	seed7 = seedYnew-60;
+	for(int i=seed6-10;i<=seed6+10;i++)
+	{
+		for(int j=seed7-10;j<=seed7+10;j++)
+		{
+			pixelindex[0] = i;
+			pixelindex[1] = j;
+			markerimage->SetPixel(pixelindex,255);
+		}
+	}
+
+	seed8 = seedXnew-60;
+	seed9 = seedYnew;
+	for(int i=seed8-10;i<=seed8+10;i++)
+	{
+		for(int j=seed9-10;j<=seed9+10;j++)
+		{
+			pixelindex[0] = i;
+			pixelindex[1] = j;
+			markerimage->SetPixel(pixelindex,255);
+		}
+	}*/
+
 	CastFilterType::Pointer caster2 = CastFilterType::New();
 	caster2->SetInput(markerimage);
 	
@@ -384,7 +527,6 @@ void FileDialog::on_pushButton_3_clicked()
 //FILTER 1 - gradient magnitude image filter
    	typedef itk::GradientMagnitudeRecursiveGaussianImageFilter<InputImageType, InputImageType> MagGradientFilterType;
    	MagGradientFilterType::Pointer maggradfilter = MagGradientFilterType::New();
-   	//maggradfilter->SetInput(itkreader->GetOutput());
 	maggradfilter->SetInput(roifilter->GetOutput());
 
 
@@ -428,8 +570,6 @@ void FileDialog::on_pushButton_3_clicked()
 
 
 
-
-
 	//FILTER 7 - MARKER BASED WATERSHED SEGMENTATION -
 
 	//Resample the gradient image
@@ -450,7 +590,7 @@ void FileDialog::on_pushButton_3_clicked()
   	typedef itk::Image<unsigned short, 2 > OutputImageType2;
   	typedef itk::ConnectedComponentImageFilter <InputImageType, OutputImageType2 > ConnectedComponentImageFilterType;
   	ConnectedComponentImageFilterType::Pointer connected = ConnectedComponentImageFilterType::New();
-	connected->FullyConnectedOn();
+	//connected->FullyConnectedOn();
   	connected->SetInput(markerimage);
   	connected->Update();
   	std::cout << "Number of objects: " << connected->GetObjectCount() << std::endl;
@@ -480,9 +620,10 @@ void FileDialog::on_pushButton_3_clicked()
  
   	typedef itk::MorphologicalWatershedFromMarkersImageFilter<InputImageType, OutputImageType> MarkerWatershedType;
   	MarkerWatershedType::Pointer markerwatershed = MarkerWatershedType::New();
+	//markerwatershed->MarkWatershedLineOn();
   	markerwatershed->SetMarkerImage(rgbFilter->GetOutput());
-  	markerwatershed->SetInput(maggradfilter->GetOutput());
-   
+  	markerwatershed->SetInput(resampledImage);
+
    	//WRITE THE OUTPUT OF WATERSHED TO A PNG FILE
    	typedef itk::ImageFileWriter<OutputImageType> FileWriterType2;
    	FileWriterType2::Pointer writer8 = FileWriterType2::New();
@@ -494,10 +635,44 @@ void FileDialog::on_pushButton_3_clicked()
     	{
     		writer8->Update();
 		std::cout<<"Watershed Image Generated..."<<endl;
+		std::cout<<"Segmentation Complete..."<<endl;
     	}
   	catch( itk::ExceptionObject & error )
     	{
     		std::cerr << "Error: " << error << std::endl;
     	}
-	std::cout<<"Segmentation Complete..."<<endl;
+	
+
+	//Display the output in a widget
+
+	vtkSmartPointer<vtkPNGReader> originalImage = vtkSmartPointer<vtkPNGReader>::New(); //Read ROI
+	originalImage->SetFileName("ROI.png");
+	vtkSmartPointer<vtkPNGReader> segResult = vtkSmartPointer<vtkPNGReader>::New(); //Read Segmentation result
+  	segResult->SetFileName("watershed.png");
+
+	// Combine the images (blend takes multiple connections on the 0th input port)
+  	vtkSmartPointer<vtkImageBlend> blend = vtkSmartPointer<vtkImageBlend>::New();
+	blend->AddInputConnection(segResult->GetOutputPort());
+  	blend->AddInputConnection(originalImage->GetOutputPort());
+	//blend->SetBlendModeToCompound();
+  	blend->SetOpacity(0,.3);
+  	blend->SetOpacity(1,.8);
+
+	//Visualise
+	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractorBlend = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+  	vtkSmartPointer<vtkImageViewer2> imageViewerBlend = vtkSmartPointer<vtkImageViewer2>::New();
+  	imageViewerBlend->SetInputConnection(blend->GetOutputPort());
+  	imageViewerBlend->SetupInteractor(renderWindowInteractorBlend);
+  	imageViewerBlend->GetRenderer()->ResetCamera();
+  	renderWindowInteractorBlend->Initialize();
+  	renderWindowInteractorBlend->Start();
+ 
+
+
+}
+
+void FileDialog::convertCoordinates(double oldX,double oldY)
+{
+	newX = 0 + ((oldX - 0) / winszX ) * sizeitkimage0;
+	newY = 0 + ((oldY - 0) / winszY ) * sizeitkimage1;
 }
