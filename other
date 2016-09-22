@@ -1,0 +1,227 @@
+//FILTER 1
+    /*typedef itk::GradientAnisotropicDiffusionImageFilter<InputImageType, InputImageType >FilterType;
+    FilterType::Pointer filter = FilterType::New();
+
+   filter->SetInput( reader->GetOutput() ); 
+   filter->SetNumberOfIterations(15);
+   filter->SetTimeStep(0.125);
+   filter->SetConductanceParameter(0.5);
+   filter->Update();
+
+/
+
+//FILTER 3
+   typedef itk::WatershedImageFilter<InputImageType> WatershedFilterType;
+   WatershedFilterType::Pointer watershed = WatershedFilterType::New();
+   watershed->SetLevel(setLevel);
+   watershed->SetThreshold(threshold);
+   watershed->SetInput(maggradfilter->GetOutput()); //The output of WatershedImageFilter is an image of unsigned long integer labels
+
+//FILTER 4
+   typedef itk::Functor::ScalarToRGBPixelFunctor<unsigned long> ColorMapFunctorType;
+   typedef WatershedFilterType::OutputImageType  LabeledImageType;
+   typedef itk::UnaryFunctorImageFilter<LabeledImageType,OutputImageType,ColorMapFunctorType> ColorMapFilterType;
+
+   ColorMapFilterType::Pointer colorMapFilter = ColorMapFilterType::New();
+   colorMapFilter->SetInput(watershed->GetOutput());
+
+
+
+//WRITE DICOM IMAGE
+
+   
+   WriterType::Pointer writer = WriterType::New();
+   writer->SetInput( colorMapFilter->GetOutput() );
+   writer->SetFileName( "OutputImage.png" );   
+   
+   //writer->SetImageIO( gdcmImageIO );
+
+  try
+    {
+    writer->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error: " << error << std::endl;
+    //return EXIT_FAILURE;
+    }
+
+    //QPixmap pixop("OutputImage.dcm");
+    //ui->label_2->setPixmap(pixop);
+
+
+
+*/
+    
+
+INTERACTION - 
+
+/*double *bounds = actor->GetDisplayBounds();
+	vtkSmartPointer<vtkImageViewer2> viewer = vtkSmartPointer<vtkImageViewer2>::New();
+	int axis = viewer->GetSliceOrientation();
+	pos[axis] = bounds[2*axis];
+	vtkSmartPointer<vtkPointData> pd = vtkSmartPointer<vtkPointData>::New();
+	pd = imagevtk->GetPointData();
+
+	vtkSmartPointer<vtkPointData> PointData = vtkSmartPointer<vtkPointData>::New();
+	PointData->InterpolateAllocate(pd,1,1);
+	//tolerance as a function of size of source data
+	double tol2 = imagevtk->GetLength();
+	tol2 = tol2 ? tol2*tol2 / 1000.0 : 0.001;
+
+	//find the cell that contains pos
+	int subId;
+	double pcoords[3], weights[8];
+	vtkSmartPointer<vtkCell> cell = vtkSmartPointer<vtkCell>::New();
+	cell = imagevtk->FindAndGetCell(pos, NULL, -1, tol2, subId, pcoords, weights);
+	PointData->InterpolatePoint(pd,0,cell->PointIds,weights);*/
+
+
+
+
+//Stencil
+
+//Get Stencil Data
+	vtkSmartPointer<vtkImageToImageStencil> imageToImageStencil = vtkSmartPointer<vtkImageToImageStencil>::New();
+	imageToImageStencil->SetInputData(segResult->GetOutput());
+
+	vtkSmartPointer<vtkImageStencil> stencil = vtkSmartPointer<vtkImageStencil>::New();
+  	stencil->SetInputConnection(2, imageToImageStencil->GetOutputPort());
+	stencil->ReverseStencilOn();
+	stencil->SetBackgroundInputData(originalImage->GetOutput());
+  	stencil->SetInputData(segResult->GetOutput());
+	stencil->Update();
+	// Create an actor
+  	vtkSmartPointer<vtkImageActor> Stencilactor = vtkSmartPointer<vtkImageActor>::New();
+  	Stencilactor->GetMapper()->SetInputConnection(stencil->GetOutputPort());
+ 
+  	// Setup renderer
+  	vtkSmartPointer<vtkRenderer> Stencilrenderer = vtkSmartPointer<vtkRenderer>::New();
+  	Stencilrenderer->AddActor(Stencilactor);
+  	//Stencilrenderer->ResetCamera();
+ 
+  	// Setup render window
+  	vtkSmartPointer<vtkRenderWindow> StencilrenderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+  	StencilrenderWindow->AddRenderer(Stencilrenderer);
+ 
+  	// Setup render window interactor
+  	vtkSmartPointer<vtkRenderWindowInteractor> StencilrenderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+  	vtkSmartPointer<vtkInteractorStyleImage> Stencilstyle = vtkSmartPointer<vtkInteractorStyleImage>::New();
+ 
+  	StencilrenderWindowInteractor->SetInteractorStyle(Stencilstyle);
+ 
+  	// Render and start interaction
+  	StencilrenderWindowInteractor->SetRenderWindow(StencilrenderWindow);
+ 	StencilrenderWindowInteractor->Initialize();
+  	StencilrenderWindowInteractor->Start();
+
+
+//Convert RGB to Gray VTK
+
+//convert RGB to grayscale
+	/*int channels_before_component_filter = segResult->GetNumberOfScalarComponents();
+	vtkSmartPointer<vtkImageExtractComponents> component_extractor = vtkSmartPointer<vtkImageExtractComponents>::New();
+	component_extractor->SetInputConnection(segResult->GetOutputPort());
+    	component_extractor->SetComponents(0, 1, 2);
+    	component_extractor->Update();
+
+	int channels_before_luminance_filter = component_extractor->GetOutput()->GetNumberOfScalarComponents(); //3
+
+	vtkSmartPointer<vtkImageLuminance> luminance_filter = vtkSmartPointer<vtkImageLuminance>::New();
+    	luminance_filter->SetInputConnection(component_extractor->GetOutputPort());
+    	luminance_filter->Update();
+
+	int channels_after_luminance_filter = luminance_filter->GetOutput()->GetNumberOfScalarComponents(); //1
+	*/
+//blend->AddInputConnection(luminance_filter->GetOutputPort());
+
+
+
+
+//Fill the viewport with the image
+double xc, yc, xd, yd, d;
+vtkSmartPointer<vtkCamera> camera = vtkSmartPointer<vtkCamera>::New();
+
+xc = IOrigin[0] + 0.5*(IExtent[0] + IExtent[1]) * ISpacing[0];
+yc = IOrigin[1] + 0.5*(IExtent[2] + IExtent[3]) * ISpacing[1];
+xd = (IExtent[1] - IExtent[0] + 1) * ISpacing[0];
+yd = (IExtent[3] - IExtent[2] + 1) * ISpacing[1];
+d = camera->GetDistance();
+camera->SetParallelScale(0.5*yd);
+camera->SetFocalPoint(xc,yc,0.0);
+camera->SetPosition(xc,yc,+d);
+
+
+
+
+//Actor Matrix
+
+//Actor matrix
+double matrix[16];
+this->ImageActor->ComputeMatrix();
+this->ImageActor->GetUserMatrix();
+	std::cout<<endl<<"Matrix after zooming: "<<endl;
+
+	for(int i=0;i<4;i++)
+	{
+		for(int j=0;j<4;j++)
+		{
+			std::cout<<matrix[i*4+j]<<"\t";
+		}
+		std::cout<<endl;
+	}
+	
+    }
+
+
+
+actor->GetMatrix(matrix);
+	//std::cout<<endl<<"Matrix: "<<matrix[0]<<endl;
+
+	for(int i=0;i<4;i++)
+	{
+		for(int j=0;j<4;j++)
+		{
+			std::cout<<matrix[i*4+j]<<"\t";
+		}
+		std::cout<<endl;
+	}
+	
+
+
+
+//Renderer options
+
+//renderer->SetBackground(0,255,255);
+	//renderWindow->SetFullScreen(true);
+	//renderWindow->Render();
+  	//renderWindowInteractor->Initialize();
+  	//renderWindow->Render();
+
+
+//Convert coordinates method 2
+/*double coord[4];
+	coord[0] = oldX;
+	coord[1] = oldY;
+	coord[2] = oldZ;
+	coord[3] = 1.0;
+	double newCoord[4];
+	int i, k;
+	double sum = 0;
+	for(k=0;k<4;k++)
+	{
+		for(i=0;i<4;i++)
+		{
+		sum = sum + (matrix[k*4+i]*coord[i]);
+		}
+		newCoord[k] = sum;
+		sum = 0;
+	}
+	newX = newCoord[0];
+	newY = newCoord[1];*/
+
+
+
+/*double picked[3];
+	renderWindowInteractor->GetPicker()->GetPickPosition(picked);
+        std::cout << "Picked value: " << picked[0] << " " << picked[1] << " " << picked[2] << std::endl;*/

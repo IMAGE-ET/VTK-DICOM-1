@@ -17,17 +17,20 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 
+
 class vtkBorderCallback : public vtkCommand
 {
 
 private:
   vtkSmartPointer<vtkRenderer> Renderer;
   vtkSmartPointer<vtkImageActor> ImageActor;
+  vtkSmartPointer<vtkRenderWindow> RenderWindow;
   
 public:
 
-  int* lowerLeft;
-  int* upperRight;
+  int* lowerLeft, ll1;
+  int* upperRight, ur1;
+  double newX, newY;
 
   vtkBorderCallback();
   ~vtkBorderCallback();
@@ -35,6 +38,10 @@ public:
   virtual void Execute(vtkObject *caller, unsigned long, void*); 
   void SetRenderer(vtkSmartPointer<vtkRenderer> ren);
   void SetImageActor(vtkSmartPointer<vtkImageActor> im);
+
+  void SetImageRenWin(vtkSmartPointer<vtkRenderWindow> rw);
+void convertCoordinates(double oldX,double oldY);
+
   //void PointPicker();
 
 };

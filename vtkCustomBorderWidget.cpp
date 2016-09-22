@@ -14,8 +14,7 @@ void vtkCustomBorderWidget::EndSelectAction(vtkAbstractWidget *w)
     vtkBorderWidget::SafeDownCast(w);
  
   // Get the actual box coordinates/planes
-  vtkSmartPointer<vtkPolyData> polydata =
-    vtkSmartPointer<vtkPolyData>::New();
+  vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
  
   // Get the bottom left corner
   double* lowerLeft;
