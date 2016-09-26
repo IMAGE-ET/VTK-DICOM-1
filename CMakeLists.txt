@@ -22,7 +22,7 @@ include(${QT_USE_FILE})
 QT4_WRAP_UI(UIScrs filedialog.ui)
 QT4_WRAP_CPP(MOCScrs filedialog.h)
 
-set(ITK_DIR /home/radiant/Downloads/InsightToolkit-4.10.0_BUILD)
+set(ITK_DIR /home/shreeya/ITK/Build)
 find_package(ITK REQUIRED)
 include(${ITK_USE_FILE})
 
